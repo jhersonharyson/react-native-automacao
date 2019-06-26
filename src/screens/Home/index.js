@@ -11,7 +11,8 @@ import {
   ToastAndroid,
   Animated,
   Image,
-  ScrollView
+  ScrollView,
+  TouchableHighlight
 } from "react-native";
 var _ = require("lodash");
 import BluetoothSerial from "react-native-bluetooth-serial";
@@ -20,12 +21,19 @@ import search from "./../../assets/imagens/search.png";
 import bluetooth from "./../../assets/imagens/bluetooth.png";
 import light from "./../../assets/imagens/light.png";
 import power from "./../../assets/imagens/power.png";
+import refresh from "./../../assets/imagens/refresh.png";
+import muted from "./../../assets/imagens/muted.png";
+import microphone from "./../../assets/imagens/microphone.png";
+import error from "./../../assets/imagens/error.png";
+
 import voice from "./../../assets/animations/voice.json";
 import circle from "./../../assets/animations/circle.json";
 import wave from "./../../assets/animations/wave.json";
 import bg from "./../../assets/animations/bg.json";
+import rec from "./../../assets/animations/rec.json";
 
 import LottieView from "lottie-react-native";
+import Voice from "react-native-voice";
 
 export default class App extends Component {
   constructor(props) {
@@ -42,8 +50,117 @@ export default class App extends Component {
       animationText1: new Animated.Value(0),
       animationText2: new Animated.Value(0),
       animationText3: new Animated.Value(0),
-      animationText4: new Animated.Value(1)
+      animationText4: new Animated.Value(1),
+      textoStatus: "",
+      texto: "",
+      voice: false
     };
+
+    Voice.onSpeechStart = this.onSpeechStartHandler.bind(this);
+    Voice.onSpeechEnd = this.onSpeechEndHandler.bind(this);
+    Voice.onSpeechResults = this.onSpeechResultsHandler.bind(this);
+  }
+
+  textProccess = text => {
+    // ligar/apagar //
+    console.log(
+      (text.indexOf("ligando") > -1 ||
+        text.indexOf("ligar") > -1 ||
+        text.indexOf("acender") > -1 ||
+        text.indexOf("acende") > -1 ||
+        text.indexOf("acendi") > -1 ||
+        text.indexOf("alto") > -1) &&
+        (text.indexOf(" luz") > -1 ||
+          text.indexOf(" lampada") > -1 ||
+          text.indexOf(" lâmpada") > -1)
+    ) ||
+      ((text.indexOf(" turning") > -1 ||
+        text.indexOf(" turn") > -1 ||
+        text.indexOf(" hight") > -1) &&
+        ((text.indexOf("light") > -1 || text.indexOf(" lamp") > -1) &&
+          text.indexOf(" on") > -1));
+
+    if (
+      (text.indexOf("segunda-feira") + 1 &&
+        ((text.indexOf("ligando") + 1 ||
+          text.indexOf(" ligar") + 1 ||
+          text.indexOf(" lig") + 1 ||
+          text.indexOf("acende") + 1 ||
+          text.indexOf("acender") + 1 ||
+          text.indexOf("abrir") + 1 ||
+          text.indexOf("abrar") + 1 ||
+          text.indexOf("ilumi") + 1 ||
+          text.indexOf("acend") + 1 ||
+          text.indexOf("alto") + 1) &&
+          (text.indexOf("luz") + 1 ||
+            text.indexOf("dia") + 1 ||
+            text.indexOf("noite") + 1 ||
+            text.indexOf("escur") + 1 ||
+            text.indexOf("lampada") + 1 ||
+            text.indexOf("lâmpada") + 1))) ||
+      (text.indexOf("monday") + 1 &&
+        (text.indexOf(" turning") + 1 ||
+          text.indexOf("turn") + 1 ||
+          text.indexOf(" hight") + 1) &&
+        ((text.indexOf("light") + 1 || text.indexOf("lamp") + 1) &&
+          text.indexOf(" on") + 1))
+    ) {
+      // ligar
+      this.toggleSwitch();
+    } else if (
+      text.indexOf("segunda-feira") + 1 &&
+      ((text.indexOf("desligando") + 1 ||
+        text.indexOf("desligar") + 1 ||
+        text.indexOf("deslig") + 1 ||
+        text.indexOf("apagar") + 1 ||
+        text.indexOf("fechar") + 1 ||
+        text.indexOf("feche") + 1 ||
+        text.indexOf("apag") + 1 ||
+        text.indexOf("ilumi") + 1 ||
+        text.indexOf("desacend") + 1 ||
+        text.indexOf("baixo") + 1) &&
+        (text.indexOf("luz") + 1 ||
+          text.indexOf("dia") + 1 ||
+          text.indexOf("noite") + 1 ||
+          text.indexOf("escur") + 1 ||
+          text.indexOf("lampada") + 1 ||
+          text.indexOf("lâmpada") + 1))
+    ) {
+      this.toggleSwitch();
+    }
+  };
+
+  onSpeechResultsHandler(result) {
+    this.setState({
+      ...this.state,
+      texto: result.value
+    });
+
+    this.textProccess(result.value.toString().toLowerCase());
+  }
+
+  onSpeechStartHandler() {
+    this.setState({
+      ...this.state,
+      textoStatus: "iniciou",
+      voice: true
+    });
+  }
+
+  onSpeechEndHandler() {
+    this.setState({
+      ...this.state,
+      textoStatus: "parou",
+      voice: false
+    });
+  }
+
+  onStartButtonPress(e) {
+    Voice.start("pt-BR");
+  }
+
+  onStopButtonPress(e) {
+    Voice.stop();
   }
 
   componentDidMount() {
@@ -77,6 +194,9 @@ export default class App extends Component {
         const [isEnabled, devices] = values;
 
         this.setState({ isEnabled, devices });
+
+        if (devices.filter(x => x.name == "Rami").length == 1)
+          this.connect(devices.filter(x => x.name == "Rami")[0]);
       }
     );
 
@@ -85,6 +205,8 @@ export default class App extends Component {
         values => {
           const [isEnabled, devices] = values;
           this.setState({ devices });
+          if (devices.filter(x => x.name == "Rami").length == 1)
+            this.connect(devices.filter(x => x.name == "Rami")[0]);
         }
       );
 
@@ -158,6 +280,18 @@ export default class App extends Component {
         .catch(err => console.log(err.message));
     }
   }
+
+  toggleVoice = () => {
+    if (this.state.voice) {
+      // end
+      this.onStopButtonPress();
+      this.setState({ voice: false });
+    } else {
+      // start
+      this.onStartButtonPress();
+    }
+  };
+
   toggleSwitch() {
     BluetoothSerial.write("T")
       .then(res => {
@@ -200,7 +334,7 @@ export default class App extends Component {
                   { fontSize: 38, fontWeight: "400", marginVertical: 15 }
                 ]}
               >
-                Segunda-feira{"\n"}
+                SEGUNDA-FEIRA{"\n"}
               </Text>
               <LottieView
                 source={circle}
@@ -253,32 +387,6 @@ export default class App extends Component {
               <Text
                 style={[
                   styles.toolbarTitleBluetooth,
-                  { color: "#fff", textAlign: "left", marginLeft: 20 }
-                ]}
-              >
-                Pesquisar
-              </Text>
-              <TouchableOpacity
-                onPress={this.discoverAvailableDevices.bind(this)}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: "#4baafb",
-                  borderRadius: 20,
-                  margin: 15,
-                  padding: 15,
-                  height: 95,
-                  width: 170
-                }}
-              >
-                <Image source={search} style={[{ width: 60, height: 60 }]} />
-              </TouchableOpacity>
-            </View>
-            <View>
-              <Text
-                style={[
-                  styles.toolbarTitleBluetooth,
                   { textAlign: "left", marginLeft: 20, color: "#fff" }
                 ]}
               >
@@ -314,6 +422,44 @@ export default class App extends Component {
                 />
               </View>
             </View>
+            <View>
+              <Text
+                style={[
+                  styles.toolbarTitleBluetooth,
+                  { color: "#fff", textAlign: "left", marginLeft: 20 }
+                ]}
+              >
+                Controle de voz
+              </Text>
+              <TouchableOpacity
+                onPress={this.toggleVoice}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#fff",
+                  borderRadius: 20,
+                  margin: 15,
+                  padding: 15,
+                  height: 95,
+                  width: 170
+                }}
+              >
+                {this.state.voice ? (
+                  <LottieView
+                    source={rec}
+                    style={{ width: 100 }}
+                    autoPlay
+                    loop
+                  />
+                ) : (
+                  <Image
+                    source={microphone}
+                    style={[{ width: 60, height: 60 }]}
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
           {this.state.isEnabled && (
             <>
@@ -332,35 +478,114 @@ export default class App extends Component {
                   >
                     Dispositivos
                   </Text>
-                  <FlatList
+                  <View
                     style={{
-                      flex: 1,
-                      backgroundColor: "#fff",
-                      margin: 20,
-                      borderRadius: 20,
-                      padding: 7.5,
-                      minHeight: 100
+                      flexDirection: "row",
+                      justifyContent: "space-between"
                     }}
-                    data={this.state.devices}
-                    keyExtractor={item => item.id}
-                    renderItem={item => this._renderItem(item)}
-                  />
+                  >
+                    <FlatList
+                      style={{
+                        flex: 1,
+                        backgroundColor: "#fff",
+                        margin: 20,
+                        borderRadius: 20,
+                        padding: 7.5,
+                        minHeight: 100,
+                        width: "45%"
+                      }}
+                      data={this.state.devices}
+                      keyExtractor={item => item.id}
+                      renderItem={item => this._renderItem(item)}
+                    />
+                    <View
+                      style={{
+                        marginTop: -20,
+                        marginRight: 10,
+                        minHeight: 100,
+                        width: "45%"
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.toolbarTitleBluetooth,
+                          { color: "#fff", textAlign: "left", marginLeft: 20 }
+                        ]}
+                      >
+                        Atualizar Dispositivos
+                      </Text>
+                      <TouchableOpacity
+                        onPress={this.discoverAvailableDevices.bind(this)}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: "#fff",
+                          borderRadius: 20,
+                          margin: 15,
+                          padding: 15,
+                          height: 95,
+                          width: 170
+                        }}
+                      >
+                        <Image
+                          source={refresh}
+                          style={[{ width: 60, height: 60 }]}
+                        />
+                      </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.toolbarTitleBluetooth,
+                          { color: "#fff", textAlign: "left", marginLeft: 20 }
+                        ]}
+                      >
+                        Fechar
+                      </Text>
+                      <TouchableOpacity
+                        onPress={_ => this.setState({ listAll: false })}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: "#fff",
+                          borderRadius: 20,
+                          margin: 15,
+                          padding: 15,
+                          height: 95,
+                          width: 170
+                        }}
+                      >
+                        <Image
+                          source={error}
+                          style={[{ width: 60, height: 60 }]}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </>
               ) : (
                 <TouchableOpacity
-                onPress={_=>this.setState({listAll: true})}
-                style={{justifyContent: "center", alignItems: "center", backgroundColor:"#fff", marginHorizontal: 15, padding: 20, borderRadius: 20}}
+                  onPress={_ => this.setState({ listAll: true })}
+                  style={{
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "#fff",
+                    marginHorizontal: 15,
+                    padding: 20,
+                    borderRadius: 20
+                  }}
                 >
                   <Text
-                  style={[
-                    styles.toolbarTitleBluetooth,
-                    {
-                      textAlign: "center",
-                      color: "black",
-                    }
-                  ]}
-                >
-                  Ver todos os dispositivos </Text>
+                    style={[
+                      styles.toolbarTitleBluetooth,
+                      {
+                        textAlign: "center",
+                        color: "black"
+                      }
+                    ]}
+                  >
+                    Ver todos os dispositivos{" "}
+                  </Text>
                 </TouchableOpacity>
               )}
               {this.state.name != null && (
@@ -414,7 +639,7 @@ export default class App extends Component {
                       }
                     ]}
                   >
-                    Nenhum dispositivo controlado
+                    Nenhum dispositivo selecionado
                   </Text>
                 )}
               </View>
@@ -426,6 +651,23 @@ export default class App extends Component {
             </>
           )}
         </View>
+        {/* <View style={styles.container}>
+          <Text style={styles.welcome}>Welcome to React Native!</Text>
+          <TouchableHighlight
+            style={styles.button}
+            onPress={this.onStartButtonPress}
+          >
+            <Text> Iniciar reconhecimento de voz </Text>
+          </TouchableHighlight>
+          <TouchableHighlight
+            style={styles.button}
+            onPress={this.onStopButtonPress}
+          >
+            <Text> Parar </Text>
+          </TouchableHighlight>
+          <Text style={styles.welcome}>Status {this.state.textoStatus}</Text>
+          <Text style={styles.welcome}>{this.state.texto}</Text>
+        </View> */}
       </ScrollView>
     );
   }
@@ -467,5 +709,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center"
+  },
+
+  welcome: {
+    fontSize: 20,
+    textAlign: "center",
+    margin: 10
+  },
+  instructions: {
+    textAlign: "center",
+    color: "#333333",
+    marginBottom: 5
   }
 });

@@ -3,6 +3,7 @@ package com.react_native;
 import android.app.Application;
 
 import com.facebook.react.ReactApplication;
+import com.wenkesj.voice.VoicePackage;
 import com.airbnb.android.react.lottie.LottiePackage;
 import com.rusel.RCTBluetoothSerial.RCTBluetoothSerialPackage;
 import com.facebook.react.ReactNativeHost;
@@ -25,6 +26,7 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
+            new VoicePackage(),
             new LottiePackage(),
             new RCTBluetoothSerialPackage()
       );
